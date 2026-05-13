@@ -46,7 +46,7 @@ soro_comp = ""
 
 if is_soro:
     st.info("💡 Composição do Soro (Opcional)")
-    soro_comp = st.text_area("Aditivos / Complemento", value=val_soro_comp, placeholder="Ex: cloreto de SODIO 20% 40ml\ncloreto de POTASSIO 19,1% 10ml")
+    soro_comp = st.text_area("Aditivos / Complemento", value=val_soro_comp, placeholder="Ex: NACL 20% 40ml\nKCL 19,1% 10ml")
 
 col_btn_add, col_btn_can = st.columns([1, 5])
 with col_btn_add:
@@ -88,11 +88,10 @@ st.divider()
 # --- SEÇÃO 3: LISTA E EDIÇÃO ---
 if st.session_state.fila_etiquetas:
     st.subheader("3. Itens Lançados")
-    
     for i, e in enumerate(st.session_state.fila_etiquetas):
         col_txt, col_ed, col_rem = st.columns([4, 1, 1])
         with col_txt:
-            st.write(f"**{i+1}.** {e['med']} | {e['dose']} | {e['via']} | **Hs: {e['hora']}**")
+            st.write(f"**{i+1}.** {e['med']} {e['dose']} | {e['via']} | **Hs: {e['hora']}**")
         with col_ed:
             if st.button("📝", key=f"ed_{i}"):
                 st.session_state.edit_index = i
@@ -115,11 +114,11 @@ if st.session_state.fila_etiquetas:
         
         # Corpo da Medicação
         if item.get("soro_comp"):
-            # Medicação Principal (Soro)
+            # Soro: Nome + Volume (Qtd e Unidade) na mesma linha
             c.setFont("Helvetica-Bold", 8)
-            c.drawString(2*mm, 16*mm, item["med"][:40])
+            c.drawString(2*mm, 16*mm, f"{item['med']} {item['dose']}"[:45])
             
-            # Aditivos logo abaixo do nome
+            # Aditivos
             c.setFont("Helvetica", 7)
             text_obj = c.beginText(2*mm, 13*mm)
             text_obj.setLeading(8)
@@ -127,7 +126,7 @@ if st.session_state.fila_etiquetas:
                 text_obj.textLine(linha[:60])
             c.drawText(text_obj)
         else:
-            # Medicação Normal ou Dextro
+            # Normal ou Dextro
             c.setFont("Helvetica-Bold", 10)
             c.drawString(2*mm, 14*mm, item["med"][:40])
             c.setFont("Helvetica-Bold", 9)
