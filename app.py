@@ -35,8 +35,8 @@ val_hora = st.session_state.fila_etiquetas[idx]["hora"] if idx is not None else 
 
 with c1: med_nome = st.text_input("Nome e Número", value=val_med)
 with c2: med_qtd = st.text_input("Qtd", value=val_qtd)
-with c3: med_un = st.selectbox("Unidade", ["mg", "ml", "UI", "gts", "comp", "frasco"])
-with c4: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL"])
+with c3: med_un = st.selectbox("Unidade", ["MG", "ML", "UI", "GTS", "COMP", "FRASCO", "BISNAGA"])
+with c4: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL", "DERM", "INAL", "IN O", "SL", "VAG", "OTO", "OTOE", "OTOD", "OFT", "OFTE", "OFTD"])
 with c5: med_hora = st.text_input("Horário (HH:MM)", value=val_hora)
 
 col_btn_add, col_btn_can = st.columns([1, 5])
