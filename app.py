@@ -56,8 +56,14 @@ with st.form(key="form_medicacao", clear_on_submit=True):
     with c4: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL", "DERM", "INAL", "IN O", "SL", "VAG", "OTO", "OTOE", "OTOD", "OFT", "OFTE", "OFTD"])
     with c5: med_hora = st.text_input("Horário (HH:MM)", value=default_hora)
     
-    # Lista de termos específicos que ativam a caixa de aditivos
-    termos_soro = ["SF 0,9%", "SG 5%", "SG 10%", "SORO FISIOLÓGICO 0,9%", "SORO FISIOLOGICO 0,9%", "SORO GLICOSADO 5%", "SORO GLICOSADO 10%"]
+    # ADICIONADO: Lista expandida com os termos com espaço E também tudo junto (colado)
+    termos_soro = [
+        "SF 0,9%", "SF0,9%", 
+        "SG 5%", "SG5%", 
+        "SG 10%", "SG10%", 
+        "SORO FISIOLÓGICO 0,9%", "SORO FISIOLOGICO 0,9%", 
+        "SORO GLICOSADO 5%", "SORO GLICOSADO 10%"
+    ]
     deve_mostrar_aditivos = any(termo in med_nome.upper() for termo in termos_soro)
     
     # Campo de aditivos condicional: só aparece após digitar o nome e dar Enter/mudar de campo
