@@ -12,12 +12,6 @@ if "fila_etiquetas" not in st.session_state:
 if "edit_index" not in st.session_state:
     st.session_state.edit_index = None
 
-# Inicializa as variáveis do formulário no session_state para controle manual de limpeza
-if "form_med" not in st.session_state: st.session_state.form_med = ""
-if "form_qtd" not in st.session_state: st.session_state.form_qtd = ""
-if "form_hora" not in st.session_state: st.session_state.form_hora = ""
-if "form_soro" not in st.session_state: st.session_state.form_soro = ""
-
 st.title("🏷️ Gerador de Etiquetas ICHC")
 
 # --- SEÇÃO 1: CABEÇALHO ---
@@ -39,7 +33,7 @@ idx = st.session_state.edit_index
 if idx is not None:
     st.warning(f"⚠️ Editando o item {idx + 1} da lista")
 
-# CORREÇÃO CRÍTICA: Os text_inputs agora usam a propriedade 'key' apontando para o session_state
+# Definição das caixas de entrada conectadas diretamente ao estado (sem dar erro ao limpar)
 with c1: med_nome = st.text_input("Nome e Número", key="form_med")
 with c2: med_qtd = st.text_input("Qtd Base (ex: 1000)", key="form_qtd")
 with c3: med_un = st.selectbox("Unidade", ["ML", "MG", "UI", "GTS", "COMP", "FRASCO", "BISNAGA", "DOSE"], key="input_un")
@@ -54,60 +48,86 @@ if is_soro:
     st.info("🧪 Informe os aditivos. Ex: cloreto de SODIO 20% - amp 10ml (COM DILUIÇÃO)")
     soro_comp = st.text_area("Aditivos / Complemento", key="form_soro")
 
-# Funções auxiliares para limpar o formulário limpando direto as chaves do session_state
-def limpar_campos_formulario():
-    st.session_state.form_med = ""
-    st.session_state.form_qtd = ""
-    st.session_state.form_hora = ""
-    st.session_state.form_soro = ""
+# Funções seguras de limpeza usando caixas temporárias ou exclusão de chaves
+def acao_adicionar():
+    if st.session_state.form_med and st.session_state.form_hora:
+        vol_final = st.session_state.form_qtd
+        texto_soro = st.session_state.get("form_soro", "")
+        
+        if is_soro and texto_soro:
+            try:
+                aditivos_ml = re.findall(r'(\d+)\s*ml', texto_soro.lower())
+                soma_aditivos = sum(int(v) for v in aditivos_ml)
+                vol_final = str(int(st.session_state.form_qtd) + soma_aditivos)
+            except:
+                vol_final = st.session_state.form_qtd
 
-# Botões de Ação
+        st.session_state.fila_etiquetas.append({
+            "med": st.session_state.form_med.upper(), 
+            "qtd_pura": st.session_state.form_qtd,
+            "dose": f"{vol_final} {st.session_state.input_un}", 
+            "via": "" if "DEXTRO" in st.session_state.form_med.upper() else st.session_state.input_via, 
+            "hora": st.session_state.form_hora, 
+            "soro_comp": texto_soro
+        })
+        # Limpa os campos deletando o estado interno atual
+        del st.session_state.form_med
+        del st.session_state.form_qtd
+        del st.session_state.form_hora
+        if "form_soro" in st.session_state:
+            del st.session_state.form_soro
+        st.rerun()
+
+def acao_salvar():
+    if st.session_state.form_med and st.session_state.form_hora:
+        vol_final = st.session_state.form_qtd
+        texto_soro = st.session_state.get("form_soro", "")
+        
+        if is_soro and texto_soro:
+            try:
+                aditivos_ml = re.findall(r'(\d+)\s*ml', texto_soro.lower())
+                soma_aditivos = sum(int(v) for v in aditivos_ml)
+                vol_final = str(int(st.session_state.form_qtd) + soma_aditivos)
+            except:
+                vol_final = st.session_state.form_qtd
+
+        st.session_state.fila_etiquetas[idx] = {
+            "med": st.session_state.form_med.upper(), 
+            "qtd_pura": st.session_state.form_qtd,
+            "dose": f"{vol_final} {st.session_state.input_un}", 
+            "via": st.session_state.input_via, 
+            "hora": st.session_state.form_hora,
+            "soro_comp": texto_soro
+        }
+        st.session_state.edit_index = None
+        # Limpa os campos deletando o estado interno atual
+        del st.session_state.form_med
+        del st.session_state.form_qtd
+        del st.session_state.form_hora
+        if "form_soro" in st.session_state:
+            del st.session_state.form_soro
+        st.rerun()
+
+def acao_cancelar():
+    st.session_state.edit_index = None
+    del st.session_state.form_med
+    del st.session_state.form_qtd
+    del st.session_state.form_hora
+    if "form_soro" in st.session_state:
+        del st.session_state.form_soro
+    st.rerun()
+
+# Botões de Ação vinculados às funções seguras
 col_btn1, col_btn2 = st.columns([1, 5])
 with col_btn1:
     if idx is None:
-        if st.button("➕ Adicionar"):
-            if med_nome and med_hora:
-                vol_final = med_qtd
-                if is_soro and soro_comp:
-                    try:
-                        aditivos_ml = re.findall(r'(\d+)\s*ml', soro_comp.lower())
-                        soma_aditivos = sum(int(v) for v in aditivos_ml)
-                        vol_final = str(int(med_qtd) + soma_aditivos)
-                    except: vol_final = med_qtd
-
-                st.session_state.fila_etiquetas.append({
-                    "med": med_nome.upper(), "qtd_pura": med_qtd,
-                    "dose": f"{vol_final} {med_un}", 
-                    "via": "" if "DEXTRO" in med_nome.upper() else med_via, 
-                    "hora": med_hora, "soro_comp": soro_comp
-                })
-                limpar_campos_formulario()
-                st.rerun()
+        st.button("➕ Adicionar", on_click=acao_adicionar)
     else:
-        if st.button("💾 Salvar"):
-            vol_final = med_qtd
-            if is_soro and soro_comp:
-                try:
-                    aditivos_ml = re.findall(r'(\d+)\s*ml', soro_comp.lower())
-                    soma_aditivos = sum(int(v) for v in aditivos_ml)
-                    vol_final = str(int(med_qtd) + soma_aditivos)
-                except: vol_final = med_qtd
-
-            st.session_state.fila_etiquetas[idx] = {
-                "med": med_nome.upper(), "qtd_pura": med_qtd,
-                "dose": f"{vol_final} {med_un}", "via": med_via, "hora": med_hora,
-                "soro_comp": soro_comp
-            }
-            st.session_state.edit_index = None
-            limpar_campos_formulario()
-            st.rerun()
+        st.button("💾 Salvar", on_click=acao_salvar)
 
 with col_btn2:
     if idx is not None:
-        if st.button("❌ Cancelar Edição"):
-            st.session_state.edit_index = None
-            limpar_campos_formulario()
-            st.rerun()
+        st.button("❌ Cancelar Edição", on_click=acao_cancelar)
 
 st.divider()
 
@@ -122,17 +142,17 @@ if st.session_state.fila_etiquetas:
         with c_ed:
             if st.button("📝", key=f"btn_ed_{i}"):
                 st.session_state.edit_index = i
-                # Força os dados salvos para dentro das chaves de controle do formulário
+                # Injeta com segurança os valores para as chaves do formulário
                 st.session_state.form_med = e["med"]
                 st.session_state.form_qtd = e["qtd_pura"]
                 st.session_state.form_hora = e["hora"]
-                st.session_state.form_soro = e.get("soro_comp", "")
+                if e.get("soro_comp"):
+                    st.session_state.form_soro = e["soro_comp"]
                 st.rerun()
         with c_rem:
             if st.button("🗑️", key=f"btn_rem_{i}"):
                 if st.session_state.edit_index == i:
                     st.session_state.edit_index = None
-                    limpar_campos_formulario()
                 st.session_state.fila_etiquetas.pop(i)
                 st.rerun()
 
@@ -177,5 +197,8 @@ if st.session_state.fila_etiquetas:
         if st.button("🗑️ LIMPAR LISTA COMPLETA"):
             st.session_state.fila_etiquetas = []
             st.session_state.edit_index = None
-            limpar_campos_formulario()
+            if "form_med" in st.session_state: del st.session_state.form_med
+            if "form_qtd" in st.session_state: del st.session_state.form_qtd
+            if "form_hora" in st.session_state: del st.session_state.form_hora
+            if "form_soro" in st.session_state: del st.session_state.form_soro
             st.rerun()
