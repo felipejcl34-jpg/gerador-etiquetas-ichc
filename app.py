@@ -28,18 +28,25 @@ st.divider()
 st.subheader("2. Dados da Medicação")
 c1, c2, c3, c4, c5 = st.columns([2, 1, 1, 1, 1])
 
-# Recupera dados para edição
 idx = st.session_state.edit_index
-val_med = st.session_state.fila_etiquetas[idx]["med"] if idx is not None else ""
-val_qtd = st.session_state.fila_etiquetas[idx]["qtd_pura"] if idx is not None else ""
-val_hora = st.session_state.fila_etiquetas[idx]["hora"] if idx is not None else ""
-val_soro_comp = st.session_state.fila_etiquetas[idx].get("soro_comp", "") if idx is not None else ""
 
-with c1: med_nome = st.text_input("Nome e Número", value=val_med, key="input_med")
-with c2: med_qtd = st.text_input("Qtd Base (ex: 1000)", value=val_qtd, key="input_qtd")
+# Usamos chaves únicas baseadas no "modo" (inserção ou edição) para forçar o Streamlit a atualizar a tela
+if idx is not None:
+    st.warning(f"⚠️ Editando o item {idx + 1} da lista")
+    med_key, qtd_key, hora_key, soro_key = f"edit_med_{idx}", f"edit_qtd_{idx}", f"edit_hora_{idx}", f"edit_soro_{idx}"
+    val_med = st.session_state.fila_etiquetas[idx]["med"]
+    val_qtd = st.session_state.fila_etiquetas[idx]["qtd_pura"]
+    val_hora = st.session_state.fila_etiquetas[idx]["hora"]
+    val_soro_comp = st.session_state.fila_etiquetas[idx].get("soro_comp", "")
+else:
+    med_key, qtd_key, hora_key, soro_key = "add_med", "add_qtd", "add_hora", "add_soro"
+    val_med, val_qtd, val_hora, val_soro_comp = "", "", "", ""
+
+with c1: med_nome = st.text_input("Nome e Número", value=val_med, key=med_key)
+with c2: med_qtd = st.text_input("Qtd Base (ex: 1000)", value=val_qtd, key=qtd_key)
 with c3: med_un = st.selectbox("Unidade", ["ML", "MG", "UI", "GTS", "COMP", "FRASCO", "BISNAGA", "DOSE"], key="input_un")
 with c4: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL", "DERM", "INAL", "IN O", "SL", "VAG", "OTO", "OTOE", "OTOD", "OFT", "OFTE", "OFTD"], key="input_via")
-with c5: med_hora = st.text_input("Horário (HH:MM)", value=val_hora, key="input_hora")
+with c5: med_hora = st.text_input("Horário (HH:MM)", value=val_hora, key=hora_key)
 
 # Soro?
 is_soro = any(x in med_nome.upper() for x in ["SF", "GLICOSE", "SORO", "RINGER"])
@@ -47,7 +54,7 @@ soro_comp = ""
 
 if is_soro:
     st.info("🧪 Informe os aditivos. Ex: cloreto de SODIO 20% - amp 10ml (COM DILUIÇÃO)")
-    soro_comp = st.text_area("Aditivos / Complemento", value=val_soro_comp, key="input_soro_comp")
+    soro_comp = st.text_area("Aditivos / Complemento", value=val_soro_comp, key=soro_key)
 
 # Botões de Ação
 col_btn1, col_btn2 = st.columns([1, 5])
@@ -55,7 +62,6 @@ with col_btn1:
     if idx is None:
         if st.button("➕ Adicionar"):
             if med_nome and med_hora:
-                # Soma inteligente de MLs
                 vol_final = med_qtd
                 if is_soro and soro_comp:
                     try:
@@ -91,13 +97,13 @@ with col_btn1:
 
 with col_btn2:
     if idx is not None:
-        if st.button("❌ Cancelar"):
+        if st.button("❌ Cancelar Edição"):
             st.session_state.edit_index = None
             st.rerun()
 
 st.divider()
 
-# --- SEÇÃO 3: LISTA LANCEADOS (EDITAR/EXCLUIR) ---
+# --- SEÇÃO 3: LISTA LANÇADOS (EDITAR/EXCLUIR) ---
 if st.session_state.fila_etiquetas:
     st.subheader("3. Itens Lançados")
     
@@ -111,6 +117,9 @@ if st.session_state.fila_etiquetas:
                 st.rerun()
         with c_rem:
             if st.button("🗑️", key=f"btn_rem_{i}"):
+                # Se deletar o item que estava sendo editado, limpa o estado de edição
+                if st.session_state.edit_index == i:
+                    st.session_state.edit_index = None
                 st.session_state.fila_etiquetas.pop(i)
                 st.rerun()
 
@@ -154,4 +163,5 @@ if st.session_state.fila_etiquetas:
     with col_f2:
         if st.button("🗑️ LIMPAR LISTA COMPLETA"):
             st.session_state.fila_etiquetas = []
+            st.session_state.edit_index = None
             st.rerun()
