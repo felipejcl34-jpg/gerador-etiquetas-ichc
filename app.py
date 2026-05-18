@@ -12,9 +12,13 @@ if "fila_etiquetas" not in st.session_state:
 if "edit_index" not in st.session_state:
     st.session_state.edit_index = None
 
+# Variáveis temporárias para quando estiver no modo de edição
+if "med_para_editar" not in st.session_state:
+    st.session_state.med_para_editar = None
+
 st.title("🏷️ Gerador de Etiquetas ICHC")
 
-# --- SEÇÃO 1: CABEÇALHO ---
+# --- SEÇÃO 1: CABEÇALHO DO PACIENTE ---
 st.subheader("1. Dados do Paciente")
 col_p1, col_p2, col_p3, col_p4 = st.columns(4)
 with col_p1: nome_pac = st.text_input("Nome do Paciente", key="pac_nome").upper()
@@ -24,110 +28,82 @@ with col_p4: nasc_pac = st.text_input("Data de Nasc.", key="pac_nasc")
 
 st.divider()
 
-# --- SEÇÃO 2: FORMULÁRIO DE MEDICAÇÃO ---
+# --- SEÇÃO 2: FORMULÁRIO DE MEDICAÇÃO (BLINDADO COM ST.FORM) ---
 st.subheader("2. Dados da Medicação")
-c1, c2, c3, c4, c5 = st.columns([2, 1, 1, 1, 1])
 
 idx = st.session_state.edit_index
 
-if idx is not None:
+# Se houver um item para editar, carregamos os valores dele, senão deixamos em branco
+if idx is not None and st.session_state.med_para_editar:
     st.warning(f"⚠️ Editando o item {idx + 1} da lista")
+    default_med = st.session_state.med_para_editar["med"]
+    default_qtd = st.session_state.med_para_editar["qtd_pura"]
+    default_hora = st.session_state.med_para_editar["hora"]
+    default_soro = st.session_state.med_para_editar.get("soro_comp", "")
+else:
+    default_med = ""
+    default_qtd = ""
+    default_hora = ""
+    default_soro = ""
 
-# Definição das caixas de entrada conectadas diretamente ao estado (sem dar erro ao limpar)
-with c1: med_nome = st.text_input("Nome e Número", key="form_med")
-with c2: med_qtd = st.text_input("Qtd Base (ex: 1000)", key="form_qtd")
-with c3: med_un = st.selectbox("Unidade", ["ML", "MG", "UI", "GTS", "COMP", "FRASCO", "BISNAGA", "DOSE"], key="input_un")
-with c4: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL", "DERM", "INAL", "IN O", "SL", "VAG", "OTO", "OTOE", "OTOD", "OFT", "OFTE", "OFTD"], key="input_via")
-with c5: med_hora = st.text_input("Horário (HH:MM)", key="form_hora")
+# Criamos o formulário isolado. Ao enviar, ele limpa a tela sozinho.
+with st.form(key="form_medicacao", clear_on_submit=True):
+    c1, c2, c3, c4, c5 = st.columns([2, 1, 1, 1, 1])
+    
+    with c1: med_nome = st.text_input("Nome e Número", value=default_med)
+    with c2: med_qtd = st.text_input("Qtd Base (ex: 1000)", value=default_qtd)
+    with c3: med_un = st.selectbox("Unidade", ["ML", "MG", "UI", "GTS", "COMP", "FRASCO", "BISNAGA", "DOSE"])
+    with c4: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL", "DERM", "INAL", "IN O", "SL", "VAG", "OTO", "OTOE", "OTOD", "OFT", "OFTE", "OFTD"])
+    with c5: med_hora = st.text_input("Horário (HH:MM)", value=default_hora)
+    
+    st.caption("🧪 Caso seja Soro, digite os aditivos abaixo. Se for medicação normal, ignore este campo:")
+    soro_comp = st.text_area("Aditivos / Complemento (Opcional para Soros)", value=default_soro, placeholder="Ex: cloreto de SODIO 20% - amp 10ml")
+    
+    # Botão de envio do formulário
+    texto_botao = "💾 Salvar Alteração" if idx is not None else "➕ Adicionar na Lista"
+    botao_submetido = st.form_submit_button(label=texto_botao, type="primary")
 
-# Soro?
-is_soro = any(x in med_nome.upper() for x in ["SF", "GLICOSE", "SORO", "RINGER"])
-soro_comp = ""
-
-if is_soro:
-    st.info("🧪 Informe os aditivos. Ex: cloreto de SODIO 20% - amp 10ml (COM DILUIÇÃO)")
-    soro_comp = st.text_area("Aditivos / Complemento", key="form_soro")
-
-# Funções seguras de limpeza usando caixas temporárias ou exclusão de chaves
-def acao_adicionar():
-    if st.session_state.form_med and st.session_state.form_hora:
-        vol_final = st.session_state.form_qtd
-        texto_soro = st.session_state.get("form_soro", "")
+# Lógica executada após clicar no botão do formulário
+if botao_submetido:
+    if med_nome and med_hora:
+        is_soro = any(x in med_nome.upper() for x in ["SF", "GLICOSE", "SORO", "RINGER"])
+        vol_final = med_qtd
         
-        if is_soro and texto_soro:
+        # Faz a soma inteligente se for soro
+        if is_soro and soro_comp:
             try:
-                aditivos_ml = re.findall(r'(\d+)\s*ml', texto_soro.lower())
+                aditivos_ml = re.findall(r'(\d+)\s*ml', soro_comp.lower())
                 soma_aditivos = sum(int(v) for v in aditivos_ml)
-                vol_final = str(int(st.session_state.form_qtd) + soma_aditivos)
+                vol_final = str(int(med_qtd) + soma_aditivos)
             except:
-                vol_final = st.session_state.form_qtd
+                vol_final = med_qtd
 
-        st.session_state.fila_etiquetas.append({
-            "med": st.session_state.form_med.upper(), 
-            "qtd_pura": st.session_state.form_qtd,
-            "dose": f"{vol_final} {st.session_state.input_un}", 
-            "via": "" if "DEXTRO" in st.session_state.form_med.upper() else st.session_state.input_via, 
-            "hora": st.session_state.form_hora, 
-            "soro_comp": texto_soro
-        })
-        # Limpa os campos deletando o estado interno atual
-        del st.session_state.form_med
-        del st.session_state.form_qtd
-        del st.session_state.form_hora
-        if "form_soro" in st.session_state:
-            del st.session_state.form_soro
-        st.rerun()
-
-def acao_salvar():
-    if st.session_state.form_med and st.session_state.form_hora:
-        vol_final = st.session_state.form_qtd
-        texto_soro = st.session_state.get("form_soro", "")
-        
-        if is_soro and texto_soro:
-            try:
-                aditivos_ml = re.findall(r'(\d+)\s*ml', texto_soro.lower())
-                soma_aditivos = sum(int(v) for v in aditivos_ml)
-                vol_final = str(int(st.session_state.form_qtd) + soma_aditivos)
-            except:
-                vol_final = st.session_state.form_qtd
-
-        st.session_state.fila_etiquetas[idx] = {
-            "med": st.session_state.form_med.upper(), 
-            "qtd_pura": st.session_state.form_qtd,
-            "dose": f"{vol_final} {st.session_state.input_un}", 
-            "via": st.session_state.input_via, 
-            "hora": st.session_state.form_hora,
-            "soro_comp": texto_soro
+        dados_item = {
+            "med": med_nome.upper(),
+            "qtd_pura": med_qtd,
+            "dose": f"{vol_final} {med_un}",
+            "via": "" if "DEXTRO" in med_nome.upper() else med_via,
+            "hora": med_hora,
+            "soro_comp": soro_comp if is_soro else ""
         }
-        st.session_state.edit_index = None
-        # Limpa os campos deletando o estado interno atual
-        del st.session_state.form_med
-        del st.session_state.form_qtd
-        del st.session_state.form_hora
-        if "form_soro" in st.session_state:
-            del st.session_state.form_soro
+
+        if idx is None:
+            # Modo Adicionar
+            st.session_state.fila_etiquetas.append(dados_item)
+        else:
+            # Modo Salvar Edição
+            st.session_state.fila_etiquetas[idx] = dados_item
+            st.session_state.edit_index = None
+            st.session_state.med_para_editar = None
+        
         st.rerun()
 
-def acao_cancelar():
-    st.session_state.edit_index = None
-    del st.session_state.form_med
-    del st.session_state.form_qtd
-    del st.session_state.form_hora
-    if "form_soro" in st.session_state:
-        del st.session_state.form_soro
-    st.rerun()
-
-# Botões de Ação vinculados às funções seguras
-col_btn1, col_btn2 = st.columns([1, 5])
-with col_btn1:
-    if idx is None:
-        st.button("➕ Adicionar", on_click=acao_adicionar)
-    else:
-        st.button("💾 Salvar", on_click=acao_salvar)
-
-with col_btn2:
-    if idx is not None:
-        st.button("❌ Cancelar Edição", on_click=acao_cancelar)
+# Botão de Cancelar posicionado fora do formulário apenas quando estiver editando
+if idx is not None:
+    if st.button("❌ Cancelar Edição"):
+        st.session_state.edit_index = None
+        st.session_state.med_para_editar = None
+        st.rerun()
 
 st.divider()
 
@@ -142,17 +118,14 @@ if st.session_state.fila_etiquetas:
         with c_ed:
             if st.button("📝", key=f"btn_ed_{i}"):
                 st.session_state.edit_index = i
-                # Injeta com segurança os valores para as chaves do formulário
-                st.session_state.form_med = e["med"]
-                st.session_state.form_qtd = e["qtd_pura"]
-                st.session_state.form_hora = e["hora"]
-                if e.get("soro_comp"):
-                    st.session_state.form_soro = e["soro_comp"]
+                # Guardamos os dados no estado temporário para o formulário ler no próximo ciclo
+                st.session_state.med_para_editar = e
                 st.rerun()
         with c_rem:
             if st.button("🗑️", key=f"btn_rem_{i}"):
                 if st.session_state.edit_index == i:
                     st.session_state.edit_index = None
+                    st.session_state.med_para_editar = None
                 st.session_state.fila_etiquetas.pop(i)
                 st.rerun()
 
@@ -197,8 +170,5 @@ if st.session_state.fila_etiquetas:
         if st.button("🗑️ LIMPAR LISTA COMPLETA"):
             st.session_state.fila_etiquetas = []
             st.session_state.edit_index = None
-            if "form_med" in st.session_state: del st.session_state.form_med
-            if "form_qtd" in st.session_state: del st.session_state.form_qtd
-            if "form_hora" in st.session_state: del st.session_state.form_hora
-            if "form_soro" in st.session_state: del st.session_state.form_soro
+            st.session_state.med_para_editar = None
             st.rerun()
