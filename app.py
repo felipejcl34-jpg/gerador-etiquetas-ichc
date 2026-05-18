@@ -39,12 +39,12 @@ idx = st.session_state.edit_index
 if idx is not None:
     st.warning(f"⚠️ Editando o item {idx + 1} da lista")
 
-# Campos de texto controlados pelo st.session_state
-with c1: med_nome = st.text_input("Nome e Número", value=st.session_state.form_med)
-with c2: med_qtd = st.text_input("Qtd Base (ex: 1000)", value=st.session_state.form_qtd)
+# CORREÇÃO CRÍTICA: Os text_inputs agora usam a propriedade 'key' apontando para o session_state
+with c1: med_nome = st.text_input("Nome e Número", key="form_med")
+with c2: med_qtd = st.text_input("Qtd Base (ex: 1000)", key="form_qtd")
 with c3: med_un = st.selectbox("Unidade", ["ML", "MG", "UI", "GTS", "COMP", "FRASCO", "BISNAGA", "DOSE"], key="input_un")
 with c4: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL", "DERM", "INAL", "IN O", "SL", "VAG", "OTO", "OTOE", "OTOD", "OFT", "OFTE", "OFTD"], key="input_via")
-with c5: med_hora = st.text_input("Horário (HH:MM)", value=st.session_state.form_hora)
+with c5: med_hora = st.text_input("Horário (HH:MM)", key="form_hora")
 
 # Soro?
 is_soro = any(x in med_nome.upper() for x in ["SF", "GLICOSE", "SORO", "RINGER"])
@@ -52,9 +52,9 @@ soro_comp = ""
 
 if is_soro:
     st.info("🧪 Informe os aditivos. Ex: cloreto de SODIO 20% - amp 10ml (COM DILUIÇÃO)")
-    soro_comp = st.text_area("Aditivos / Complemento", value=st.session_state.form_soro)
+    soro_comp = st.text_area("Aditivos / Complemento", key="form_soro")
 
-# Funções auxiliares para limpar o formulário
+# Funções auxiliares para limpar o formulário limpando direto as chaves do session_state
 def limpar_campos_formulario():
     st.session_state.form_med = ""
     st.session_state.form_qtd = ""
@@ -122,7 +122,7 @@ if st.session_state.fila_etiquetas:
         with c_ed:
             if st.button("📝", key=f"btn_ed_{i}"):
                 st.session_state.edit_index = i
-                # Carrega os dados direto no estado do formulário
+                # Força os dados salvos para dentro das chaves de controle do formulário
                 st.session_state.form_med = e["med"]
                 st.session_state.form_qtd = e["qtd_pura"]
                 st.session_state.form_hora = e["hora"]
