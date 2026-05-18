@@ -6,11 +6,17 @@ import re
 
 st.set_page_config(page_title="Gerador Manual ICHC", layout="wide")
 
-# Inicializa estados
+# Inicializa estados essenciais
 if "fila_etiquetas" not in st.session_state:
     st.session_state.fila_etiquetas = []
 if "edit_index" not in st.session_state:
     st.session_state.edit_index = None
+
+# Inicializa as variáveis do formulário no session_state para controle manual de limpeza
+if "form_med" not in st.session_state: st.session_state.form_med = ""
+if "form_qtd" not in st.session_state: st.session_state.form_qtd = ""
+if "form_hora" not in st.session_state: st.session_state.form_hora = ""
+if "form_soro" not in st.session_state: st.session_state.form_soro = ""
 
 st.title("🏷️ Gerador de Etiquetas ICHC")
 
@@ -30,23 +36,15 @@ c1, c2, c3, c4, c5 = st.columns([2, 1, 1, 1, 1])
 
 idx = st.session_state.edit_index
 
-# Usamos chaves únicas baseadas no "modo" (inserção ou edição) para forçar o Streamlit a atualizar a tela
 if idx is not None:
     st.warning(f"⚠️ Editando o item {idx + 1} da lista")
-    med_key, qtd_key, hora_key, soro_key = f"edit_med_{idx}", f"edit_qtd_{idx}", f"edit_hora_{idx}", f"edit_soro_{idx}"
-    val_med = st.session_state.fila_etiquetas[idx]["med"]
-    val_qtd = st.session_state.fila_etiquetas[idx]["qtd_pura"]
-    val_hora = st.session_state.fila_etiquetas[idx]["hora"]
-    val_soro_comp = st.session_state.fila_etiquetas[idx].get("soro_comp", "")
-else:
-    med_key, qtd_key, hora_key, soro_key = "add_med", "add_qtd", "add_hora", "add_soro"
-    val_med, val_qtd, val_hora, val_soro_comp = "", "", "", ""
 
-with c1: med_nome = st.text_input("Nome e Número", value=val_med, key=med_key)
-with c2: med_qtd = st.text_input("Qtd Base (ex: 1000)", value=val_qtd, key=qtd_key)
+# Campos de texto controlados pelo st.session_state
+with c1: med_nome = st.text_input("Nome e Número", value=st.session_state.form_med)
+with c2: med_qtd = st.text_input("Qtd Base (ex: 1000)", value=st.session_state.form_qtd)
 with c3: med_un = st.selectbox("Unidade", ["ML", "MG", "UI", "GTS", "COMP", "FRASCO", "BISNAGA", "DOSE"], key="input_un")
 with c4: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL", "DERM", "INAL", "IN O", "SL", "VAG", "OTO", "OTOE", "OTOD", "OFT", "OFTE", "OFTD"], key="input_via")
-with c5: med_hora = st.text_input("Horário (HH:MM)", value=val_hora, key=hora_key)
+with c5: med_hora = st.text_input("Horário (HH:MM)", value=st.session_state.form_hora)
 
 # Soro?
 is_soro = any(x in med_nome.upper() for x in ["SF", "GLICOSE", "SORO", "RINGER"])
@@ -54,7 +52,14 @@ soro_comp = ""
 
 if is_soro:
     st.info("🧪 Informe os aditivos. Ex: cloreto de SODIO 20% - amp 10ml (COM DILUIÇÃO)")
-    soro_comp = st.text_area("Aditivos / Complemento", value=val_soro_comp, key=soro_key)
+    soro_comp = st.text_area("Aditivos / Complemento", value=st.session_state.form_soro)
+
+# Funções auxiliares para limpar o formulário
+def limpar_campos_formulario():
+    st.session_state.form_med = ""
+    st.session_state.form_qtd = ""
+    st.session_state.form_hora = ""
+    st.session_state.form_soro = ""
 
 # Botões de Ação
 col_btn1, col_btn2 = st.columns([1, 5])
@@ -76,6 +81,7 @@ with col_btn1:
                     "via": "" if "DEXTRO" in med_nome.upper() else med_via, 
                     "hora": med_hora, "soro_comp": soro_comp
                 })
+                limpar_campos_formulario()
                 st.rerun()
     else:
         if st.button("💾 Salvar"):
@@ -93,12 +99,14 @@ with col_btn1:
                 "soro_comp": soro_comp
             }
             st.session_state.edit_index = None
+            limpar_campos_formulario()
             st.rerun()
 
 with col_btn2:
     if idx is not None:
         if st.button("❌ Cancelar Edição"):
             st.session_state.edit_index = None
+            limpar_campos_formulario()
             st.rerun()
 
 st.divider()
@@ -114,12 +122,17 @@ if st.session_state.fila_etiquetas:
         with c_ed:
             if st.button("📝", key=f"btn_ed_{i}"):
                 st.session_state.edit_index = i
+                # Carrega os dados direto no estado do formulário
+                st.session_state.form_med = e["med"]
+                st.session_state.form_qtd = e["qtd_pura"]
+                st.session_state.form_hora = e["hora"]
+                st.session_state.form_soro = e.get("soro_comp", "")
                 st.rerun()
         with c_rem:
             if st.button("🗑️", key=f"btn_rem_{i}"):
-                # Se deletar o item que estava sendo editado, limpa o estado de edição
                 if st.session_state.edit_index == i:
                     st.session_state.edit_index = None
+                    limpar_campos_formulario()
                 st.session_state.fila_etiquetas.pop(i)
                 st.rerun()
 
@@ -164,4 +177,5 @@ if st.session_state.fila_etiquetas:
         if st.button("🗑️ LIMPAR LISTA COMPLETA"):
             st.session_state.fila_etiquetas = []
             st.session_state.edit_index = None
+            limpar_campos_formulario()
             st.rerun()
