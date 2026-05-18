@@ -12,11 +12,9 @@ if "fila_etiquetas" not in st.session_state:
 if "edit_index" not in st.session_state:
     st.session_state.edit_index = None
 
-# Inicializa chaves do formulário no session_state para permitir limpeza instantânea
-if "f_med" not in st.session_state: st.session_state.f_med = ""
-if "f_qtd" not in st.session_state: st.session_state.f_qtd = ""
-if "f_hora" not in st.session_state: st.session_state.f_hora = ""
-if "f_soro" not in st.session_state: st.session_state.f_soro = ""
+# Gerenciador de reinicialização para limpar os campos sem estourar erro no Streamlit
+if "limpar_contador" not in st.session_state:
+    st.session_state.limpar_contador = 0
 
 st.title("🏷️ Gerador de Etiquetas ICHC")
 
@@ -38,16 +36,17 @@ idx = st.session_state.edit_index
 if idx is not None:
     st.warning(f"⚠️ Editando o item {idx + 1} da lista")
 
-# 5 Campos perfeitamente alinhados lado a lado
+# 5 Campos alinhados lado a lado usando chaves dinâmicas baseadas em um contador para reset limpo
 c1, c2, c3, c4, c5 = st.columns([2, 1, 1, 1, 1])
+v_cont = st.session_state.limpar_contador
 
-with c1: med_nome = st.text_input("Nome e Número", key="f_med")
-with c2: med_qtd = st.text_input("Qtd Base (ex: 1000)", key="f_qtd")
-with c3: med_un = st.selectbox("Unidade", ["ML", "MG", "UI", "GTS", "COMP", "FRASCO", "BISNAGA", "DOSE"], key="f_un")
-with c4: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL", "DERM", "INAL", "IN O", "SL", "VAG", "OTO", "OTOE", "OTOD", "OFT", "OFTE", "OFTD"], key="f_via")
-with c5: med_hora = st.text_input("Horário (HH:MM)", key="f_hora")
+with c1: med_nome = st.text_input("Nome e Número", key=f"med_nome_{v_cont}")
+with c2: med_qtd = st.text_input("Qtd Base (ex: 1000)", key=f"med_qtd_{v_cont}")
+with c3: med_un = st.selectbox("Unidade", ["ML", "MG", "UI", "GTS", "COMP", "FRASCO", "BISNAGA", "DOSE"], key=f"med_un_{v_cont}")
+with c4: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL", "DERM", "INAL", "IN O", "SL", "VAG", "OTO", "OTOE", "OTOD", "OFT", "OFTE", "OFTD"], key=f"med_via_{v_cont}")
+with c5: med_hora = st.text_input("Horário (HH:MM)", key=f"med_hora_{v_cont}")
 
-# Lista expandida: monitora em tempo real com espaço ou tudo colado
+# Lista expandida com termos com espaço e tudo junto (colado)
 termos_soro = [
     "SF 0,9%", "SF0,9%", 
     "SG 5%", "SG5%", 
@@ -57,20 +56,17 @@ termos_soro = [
 ]
 deve_mostrar_aditivos = any(termo in med_nome.upper() for termo in termos_soro)
 
-# A caixinha de aditivos aparece SOZINHA na tela assim que o usuário digita a última letra, sem Enter!
+# A caixinha de aditivos aparece SOZINHA na tela assim que o usuário digita, sem Enter
 soro_comp = ""
 if deve_mostrar_aditivos:
     st.info("🧪 Soro identificado! Informe os aditivos abaixo:")
-    soro_comp = st.text_area("Aditivos / Complemento", key="f_soro", placeholder="Ex: cloreto de SODIO 20% - amp 10ml")
+    soro_comp = st.text_area("Aditivos / Complemento", key=f"med_soro_{v_cont}", placeholder="Ex: cloreto de SODIO 20% - amp 10ml")
 
-# Função interna para zerar as caixas de texto com segurança
-def limpar_tudo():
-    st.session_state.f_med = ""
-    st.session_state.f_qtd = ""
-    st.session_state.f_hora = ""
-    st.session_state.f_soro = ""
+# Função segura de reset: muda o sufixo numérico dos campos, fazendo o Streamlit recriá-los vazios instantaneamente
+def disparar_limpeza_segura():
+    st.session_state.limpar_contador += 1
 
-# Área de botões de salvamento
+# Área de botões de ação
 st.write("")
 col_btn1, col_btn2 = st.columns([1.5, 5])
 
@@ -93,7 +89,7 @@ with col_btn1:
                     "via": "" if "DEXTRO" in med_nome.upper() else med_via, 
                     "hora": med_hora, "soro_comp": soro_comp if deve_mostrar_aditivos else ""
                 })
-                limpar_tudo()
+                disparar_limpeza_segura()
                 st.rerun()
     else:
         if st.button("💾 Salvar Alteração", type="primary", use_container_width=True):
@@ -113,16 +109,14 @@ with col_btn1:
                     "soro_comp": soro_comp if deve_mostrar_aditivos else ""
                 }
                 st.session_state.edit_index = None
-                st.session_state.med_para_editar = None
-                limpar_tudo()
+                disparar_limpeza_segura()
                 st.rerun()
 
 with col_btn2:
     if idx is not None:
-        if st.button("❌ Cancelar Edição", use_container_width=False):
+        if st.button("❌ Cancelar Edição"):
             st.session_state.edit_index = None
-            st.session_state.med_para_editar = None
-            limpar_tudo()
+            disparar_limpeza_segura()
             st.rerun()
 
 st.divider()
@@ -138,17 +132,22 @@ if st.session_state.fila_etiquetas:
         with c_ed:
             if st.button("📝", key=f"btn_ed_{i}"):
                 st.session_state.edit_index = i
-                # Injeta com total estabilidade os dados salvos de volta nas caixas de texto
-                st.session_state.f_med = e["med"]
-                st.session_state.f_qtd = e["qtd_pura"]
-                st.session_state.f_hora = e["hora"]
-                st.session_state.f_soro = e.get("soro_comp", "")
+                # Muda a chave para forçar a renderização dos dados antigos para edição
+                st.session_state.limpar_contador += 1
+                curr_cont = st.session_state.limpar_contador
+                st.session_state[f"med_nome_{curr_cont}"] = e["med"]
+                st.session_state[f"med_qtd_{curr_cont}"] = e["qtd_pura"]
+                st.session_state[f"med_un_{curr_cont}"] = e["dose"].split()[-1] if " " in e["dose"] else "ML"
+                st.session_state[f"med_via_{curr_cont}"] = e["via"]
+                st.session_state[f"med_hora_{curr_cont}"] = e["hora"]
+                if e.get("soro_comp"):
+                    st.session_state[f"med_soro_{curr_cont}"] = e["soro_comp"]
                 st.rerun()
         with c_rem:
             if st.button("🗑️", key=f"btn_rem_{i}"):
                 if st.session_state.edit_index == i:
                     st.session_state.edit_index = None
-                    limpar_tudo()
+                    disparar_limpeza_segura()
                 st.session_state.fila_etiquetas.pop(i)
                 st.rerun()
 
@@ -193,5 +192,5 @@ if st.session_state.fila_etiquetas:
         if st.button("🗑️ LIMPAR LISTA COMPLETA"):
             st.session_state.fila_etiquetas = []
             st.session_state.edit_index = None
-            limpar_tudo()
+            disparar_limpeza_segura()
             st.rerun()
