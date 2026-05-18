@@ -28,7 +28,7 @@ with col_p4: nasc_pac = st.text_input("Data de Nasc.", key="pac_nasc")
 
 st.divider()
 
-# --- SEÇÃO 2: FORMULÁRIO DE MEDICAÇÃO ---
+# --- SEÇÃO 2: FORMULÁRIO DE MEDICAÇÃO (VISUAL LADO A LADO) ---
 st.subheader("2. Dados da Medicação")
 
 idx = st.session_state.edit_index
@@ -46,23 +46,21 @@ else:
     default_hora = ""
     default_soro = ""
 
-# Criamos uma caixinha de texto fora do formulário apenas para monitorar o que o usuário digita em tempo real
-med_nome_input = st.text_input("Nome e Número da Medicação", value=default_med, key="monitor_med_nome")
-
-# Lista de termos específicos que ativam a caixa de aditivos
-termos_soro = ["SF 0,9%", "SG 5%", "SG 10%", "SORO FISIOLÓGICO 0,9%", "SORO FISIOLOGICO 0,9%", "SORO GLICOSADO 5%", "SORO GLICOSADO 10%"]
-deve_mostrar_aditivos = any(termo in med_nome_input.upper() for termo in termos_soro)
-
-# Criamos o formulário isolado. Ao enviar, ele limpa a tela sozinho.
+# Criamos o formulário isolado. Todos os 5 campos voltam a ficar lado a lado
 with st.form(key="form_medicacao", clear_on_submit=True):
-    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+    c1, c2, c3, c4, c5 = st.columns([2, 1, 1, 1, 1])
     
-    with c1: med_qtd = st.text_input("Qtd Base (ex: 1000)", value=default_qtd)
-    with c2: med_un = st.selectbox("Unidade", ["ML", "MG", "UI", "GTS", "COMP", "FRASCO", "BISNAGA", "DOSE"])
-    with c3: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL", "DERM", "INAL", "IN O", "SL", "VAG", "OTO", "OTOE", "OTOD", "OFT", "OFTE", "OFTD"])
-    with c4: med_hora = st.text_input("Horário (HH:MM)", value=default_hora)
+    with c1: med_nome = st.text_input("Nome e Número", value=default_med)
+    with c2: med_qtd = st.text_input("Qtd Base (ex: 1000)", value=default_qtd)
+    with c3: med_un = st.selectbox("Unidade", ["ML", "MG", "UI", "GTS", "COMP", "FRASCO", "BISNAGA", "DOSE"])
+    with c4: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL", "DERM", "INAL", "IN O", "SL", "VAG", "OTO", "OTOE", "OTOD", "OFT", "OFTE", "OFTD"])
+    with c5: med_hora = st.text_input("Horário (HH:MM)", value=default_hora)
     
-    # Campo de aditivos condicional: só aparece se corresponder à sua lista de soros
+    # Lista de termos específicos que ativam a caixa de aditivos
+    termos_soro = ["SF 0,9%", "SG 5%", "SG 10%", "SORO FISIOLÓGICO 0,9%", "SORO FISIOLOGICO 0,9%", "SORO GLICOSADO 5%", "SORO GLICOSADO 10%"]
+    deve_mostrar_aditivos = any(termo in med_nome.upper() for termo in termos_soro)
+    
+    # Campo de aditivos condicional: só aparece após digitar o nome e dar Enter/mudar de campo
     soro_comp = ""
     if deve_mostrar_aditivos:
         st.info("🧪 Soro identificado! Informe os aditivos abaixo:")
@@ -74,7 +72,7 @@ with st.form(key="form_medicacao", clear_on_submit=True):
 
 # Lógica executada após clicar no botão do formulário
 if botao_submetido:
-    if med_nome_input and med_hora:
+    if med_nome and med_hora:
         vol_final = med_qtd
         
         # Faz a soma inteligente se for um dos soros válidos e houver aditivos
@@ -87,10 +85,10 @@ if botao_submetido:
                 vol_final = med_qtd
 
         dados_item = {
-            "med": med_nome_input.upper(),
+            "med": med_nome.upper(),
             "qtd_pura": med_qtd,
             "dose": f"{vol_final} {med_un}",
-            "via": "" if "DEXTRO" in med_nome_input.upper() else med_via,
+            "via": "" if "DEXTRO" in med_nome.upper() else med_via,
             "hora": med_hora,
             "soro_comp": soro_comp if deve_mostrar_aditivos else ""
         }
@@ -102,8 +100,6 @@ if botao_submetido:
             st.session_state.edit_index = None
             st.session_state.med_para_editar = None
         
-        # Limpa o monitor de texto de cima
-        st.session_state.monitor_med_nome = ""
         st.rerun()
 
 # Botão de Cancelar posicionado fora do formulário apenas quando estiver editando
@@ -111,7 +107,6 @@ if idx is not None:
     if st.button("❌ Cancelar Edição"):
         st.session_state.edit_index = None
         st.session_state.med_para_editar = None
-        st.session_state.monitor_med_nome = ""
         st.rerun()
 
 st.divider()
@@ -128,14 +123,12 @@ if st.session_state.fila_etiquetas:
             if st.button("📝", key=f"btn_ed_{i}"):
                 st.session_state.edit_index = i
                 st.session_state.med_para_editar = e
-                st.session_state.monitor_med_nome = e["med"]
                 st.rerun()
         with c_rem:
             if st.button("🗑️", key=f"btn_rem_{i}"):
                 if st.session_state.edit_index == i:
                     st.session_state.edit_index = None
                     st.session_state.med_para_editar = None
-                    st.session_state.monitor_med_nome = ""
                 st.session_state.fila_etiquetas.pop(i)
                 st.rerun()
 
@@ -181,5 +174,4 @@ if st.session_state.fila_etiquetas:
             st.session_state.fila_etiquetas = []
             st.session_state.edit_index = None
             st.session_state.med_para_editar = None
-            st.session_state.monitor_med_nome = ""
             st.rerun()
