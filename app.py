@@ -43,7 +43,7 @@ v_cont = st.session_state.limpar_contador
 with c1: med_nome = st.text_input("Nome e Número", key=f"med_nome_{v_cont}")
 with c2: med_qtd = st.text_input("Qtd Base (ex: 1000)", key=f"med_qtd_{v_cont}")
 with c3: med_un = st.selectbox("Unidade", ["ML", "MG", "MCG", "UI", "GTS", "COMP", "FRASCO", "BISNAGA", "DOSE"], key=f"med_un_{v_cont}")
-with c4: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL", "DERM", "INAL", "IN O", "SL", "VAG", "OTO", "OTOE", "OTOD", "OFT", "OFTE", "OFTD"], key=f"med_via_{v_cont}")
+with c4: med_via = st.selectbox("Via", ["IV", "IM", "SC", "GTRS", "SNE", "VO", "NASAL", "RETAL", "DERM", "INAL", "IN O", "SL", "VAG", "OTO", "OTOE", "OTOD", "OFT", "OFTE", "OFTD", "BC"], key=f"med_via_{v_cont}")
 with c5: med_hora = st.text_input("Horário (HH:MM)", key=f"med_hora_{v_cont}")
 
 # Lista expandida com termos com espaço e tudo junto (colado)
